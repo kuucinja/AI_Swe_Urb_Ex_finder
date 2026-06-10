@@ -43,7 +43,7 @@ Each model item contains:
 
 
 
-API_KEY = "sk_ber_3j3HVhZB2R1XPn0FaYDO6avfgpZ7bD9NbiDMR_d73634cfee2d4aa1"
+API_KEY = "ADD_API_KEY_HERE"
 
 
 url = "https://api.berget.ai/v1/models"
