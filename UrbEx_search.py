@@ -130,12 +130,22 @@ def agent(start_url):
     # input(html)
     themes = extract_forum_themes(html)
     # input(f'{themes} \n themes found, press to continue...')
-    priority_theme = "https://www.flashback.org/f492-urban-exploration-60610"
+    priority_theme = "https://www.flashback.org/f492lp"
 
     if priority_theme in themes:
+        input(f"Prioritizing theme: {priority_theme}")
         themes.remove(priority_theme)
         themes.insert(0, priority_theme)
-
+    else:
+        print(f"Priority theme not found: {priority_theme}")
+        # print(f"Available themes: {themes} \n press to continue...")
+        for theme in themes:
+            if "urban" in theme.lower() or "urban exploration" in theme.lower():
+                input(f"Found potential urbex theme: {theme} \n press to continue...")
+            if "f492" in theme.lower():
+                input(f"Found potential urbex theme (f492): {theme} \n press to continue...")
+            else:
+                input(f"keyword urban not found, do manual search {themes} \n press to continue...")
 
     for theme in themes:
         if theme  not in completed_themes:

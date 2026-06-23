@@ -2,8 +2,12 @@ import requests
 import sys
 import tiktoken
 import time
+from dotenv import load_dotenv
+import os
 
-API_KEY = "ADD_API_KEY_HERE"
+load_dotenv()
+
+API_KEY = os.getenv("API_KEY")
 API_URL = "https://api.berget.ai/v1/chat/completions"
 
 
