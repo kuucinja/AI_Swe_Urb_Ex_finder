@@ -29,7 +29,7 @@ from urllib.parse import quote_plus, urljoin
 import requests
 from bs4 import BeautifulSoup
 
-from thread_extraction import BASE, build_url, fetch, get_total_pages, parse_posts
+from retrieval.thread_extraction import BASE, build_url, fetch, get_total_pages, parse_posts
 
 
 PROJECT_DIR = Path(__file__).resolve().parent

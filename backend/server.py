@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
-from central_agent import run_agent
+from backend.central_agent import run_agent
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()

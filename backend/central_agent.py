@@ -5,8 +5,8 @@ import time
 from dotenv import load_dotenv
 import os
 import json
-from orchestrator import handle_query
-from call_llm import call_llm, trim_to_limit, summarize, count_tokens
+from backend.orchestrator import handle_query
+from backend.call_llm import call_llm, trim_to_limit, summarize, count_tokens
 
 from pathlib import Path
 
@@ -31,7 +31,7 @@ def run_agent(message: str, locations=None):
 
     # give the LLM the data context, but keep it out of permanent memory
     # so you don't re-send a huge feature dump on every future turn
-    data_context = f"Relevant locations found ({result['source']}):\n{result['features']}"
+    data_context = f"Relevant locations found ({result['source']}):\n{result['locations']}"
 
 
     response = call_llm([
@@ -45,7 +45,7 @@ def run_agent(message: str, locations=None):
 
     return {
         "reply": response,
-        "locations": result['features']
+        "locations": result['locations']
     }
 
 # if __name__ == "__main__":

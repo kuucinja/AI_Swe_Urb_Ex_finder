@@ -3,7 +3,7 @@
 ##
 
 import json
-from db import get_conn, init_db
+from retrieval.db_data.db import get_conn, init_db
 
 import sys
 from pathlib import Path

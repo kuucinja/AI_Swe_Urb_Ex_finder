@@ -1,7 +1,9 @@
 An agent that scrapes/locates urban exploring locations in Sweden, based on flashback.org forum data:
 
 Backend:
+    start up: uvicorn server:app --reload --port 8000
 Interface:
+    start up: npm run dev
 Retrieval:
     a custom built forum scraper, that collects posts from the flashback.org forum. All data is saved into ir_data.db database, which has tow
     tables:
