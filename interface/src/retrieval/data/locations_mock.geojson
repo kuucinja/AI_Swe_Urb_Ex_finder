@@ -1,0 +1,125 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "factory-nordvik-mill",
+        "name": "Nordvik Paper Mill",
+        "category": "factory",
+        "description": "A disused paper mill with loading bays, rusted conveyors, and a wide service yard.",
+        "risk": "high",
+        "comments": [
+          "The west dock is still mentioned in forum notes as the easiest visual confirmation point.",
+          "Several posts reference broken windows on the north side and a visible rail spur behind the building."
+        ],
+        "sourceUrl": "https://forum.example.com/thread/nordvik-paper-mill",
+        "threadUrl": "https://forum.example.com/thread/nordvik-paper-mill"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [17.6672, 59.8594]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "hospital-st-brigid",
+        "name": "St. Brigid's Hospital",
+        "category": "hospital",
+        "description": "A former county hospital with an empty ward block, service tunnels, and an abandoned courtyard.",
+        "risk": "medium",
+        "comments": [
+          "Posts mention the old ambulance entrance and the intact tiled corridor to the east wing.",
+          "A later reply confirms the site is fenced but still visible from the public road."
+        ],
+        "sourceUrl": "https://forum.example.com/thread/st-brigids-hospital",
+        "threadUrl": "https://forum.example.com/thread/st-brigids-hospital"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [13.0025, 55.605]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "bunker-black-pine",
+        "name": "Black Pine Bunker",
+        "category": "bunker",
+        "description": "A shallow concrete bunker complex hidden in forest cover with multiple sealed entrances.",
+        "risk": "high",
+        "comments": [
+          "One comment points to the tree line north of the gravel road as the clearest clue.",
+          "Another confirms the ventilation stacks and a collapsed hatch near the service path."
+        ],
+        "sourceUrl": "https://forum.example.com/thread/black-pine-bunker",
+        "threadUrl": "https://forum.example.com/thread/black-pine-bunker"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [18.1892, 59.4287]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "military-northpoint-depot",
+        "name": "Northpoint Military Depot",
+        "category": "military",
+        "description": "A former military storage depot with long warehouse rows and a security perimeter that still remains partly intact.",
+        "risk": "high",
+        "comments": [
+          "The thread says the depot sits beyond the old training road and close to the rail branch.",
+          "A second post confirms the front gate is the most recognizable landmark from the main road."
+        ],
+        "sourceUrl": "https://forum.example.com/thread/northpoint-military-depot",
+        "threadUrl": "https://forum.example.com/thread/northpoint-military-depot"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [18.0653, 59.3293]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "tunnel-raven-pass",
+        "name": "Raven Pass Tunnel",
+        "category": "tunnel",
+        "description": "A maintenance tunnel under the hillside with drainage channels and a service hatch nearby.",
+        "risk": "medium",
+        "comments": [
+          "Forum replies repeatedly mention the curved retaining wall at the east entrance.",
+          "A final comment confirms the tunnel mouth is visible below the footpath bridge."
+        ],
+        "sourceUrl": "https://forum.example.com/thread/raven-pass-tunnel",
+        "threadUrl": "https://forum.example.com/thread/raven-pass-tunnel"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [11.9746, 57.7089]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "warehouse-iron-harbor",
+        "name": "Iron Harbor Warehouse",
+        "category": "warehouse",
+        "description": "A waterfront storage block with broken loading doors, weathered signage, and a fenced truck bay.",
+        "risk": "medium",
+        "comments": [
+          "One comment says the warehouse is directly across from the dry dock crane.",
+          "Another confirms the best reference is the row of loading doors facing the quay."
+        ],
+        "sourceUrl": "https://forum.example.com/thread/iron-harbor-warehouse",
+        "threadUrl": "https://forum.example.com/thread/iron-harbor-warehouse"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [10.7371, 59.9139]
+      }
+    }
+  ]
+}

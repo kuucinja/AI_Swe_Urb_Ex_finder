@@ -1,12 +1,33 @@
-A tool that scrapes flashback.org - a swedish forum for discussing various topics
-1st step: run UrbEx_search.py – it starts crawling the domain, giving primacy to the subforum about Urban exploring
-    It takes each title of the thread and sends it to gpt-os-120b hosted by BergetAI to check whether it matches urban exploration topics
+An agent that scrapes/locates urban exploring locations in Sweden, based on flashback.org forum data:
 
-2nd step: once all thread titles are crawled (which is a ginormous task in itself) the agent will take all the thread links which have been flagged to 
-    correspond to Urban Exploration topics, it will go through each thread and fish out Named Entities and save them as seperate objects
+Backend:
+Interface:
+Retrieval:
+    a custom built forum scraper, that collects posts from the flashback.org forum. All data is saved into ir_data.db database, which has tow
+    tables:
+        locations [entity, lat, lon, post_id, thread_url, confidence]
+        posts [post_id, thread_url, username, time_raw, text]
+    the scraper firstly gathers links to: [themes, threads, posts(text)]
+        themes are Flashback subsections based on the a topic (like UrbEx)
+        threads are seperate threads based on a specific question/discussion
+        posts are individual user contributions and the base of the textual data the Agent uses to determine the location of UrbEx locations
+        the scraper consists of these scripts which need to be adjusted and linked to the Central Agent:
+            crawl_agent.py
+            thread_extraction.py
+            UrbEx_search.py
+            and:
+    UrbEx_location_agent uses different heuristics to create the location database:
+        this is as preliminary as it can get and is basically just there for the sake of complete architecture
+        output is geojson
+    db_data/geojson_into_db.py - converts the location agents results into a look-up table to make everything faster
+    data_urbex: this is where all the temp/url files are located before they get turned into the ir_data.db look-up table
 
-3rd step: after all Named Entities have been sieved through, the agent will try and look up the named entities and match them to some geographical location:
-    either specific coordinates, nearby town, etc
+Memory:
+    session memory - the agent can remember what happens during the session
+    long term memory - in the works, but long term memory should save each conversation in a seperate file
+Skills:
+Tools:
+
 
 
 DISCLAIMER:
@@ -31,10 +52,26 @@ UPDATED PIPELINE:
     discovered_locations.json
     discovered_locations.geojson
     discovered_locations.csv
-    discovered_locations_map.html
 
 4. Resume state is written to data/location_agent_state.json. Delete that file if you want a clean run.
 
 Install dependencies first if needed:
 
     python -m pip install -r requirements.txt
+
+
+PROJECT LAYOUT
+
+interface/
+    React + Vite + Tailwind frontend
+
+retrieval/
+    Flashback scraping, thread parsing, cleaning, and UrbEx location extraction
+
+Run the frontend from:
+
+    interface
+
+Run the retrieval scripts from:
+
+    retrieval
