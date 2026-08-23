@@ -5,8 +5,10 @@ echo ============================
 echo   IR Agent Dev Launcher
 echo ============================
 
-:: Start Backend (FastAPI)
-start "Backend" cmd /k "uvicorn backend.server:app --reload --port 8000"
+:: Start Backend (FastAPI) - uses the ir-proj conda env, which has
+:: psycopg2/dotenv/fastapi installed (the default "python"/"uvicorn" on
+:: PATH does not).
+start "Backend" cmd /k "%USERPROFILE%\miniconda3\envs\ir-proj\python.exe -m uvicorn backend.server:app --reload --port 8000"
 
 :: Start Frontend (React/Vite)
 start "Interface" cmd /k "cd interface && npm run dev"

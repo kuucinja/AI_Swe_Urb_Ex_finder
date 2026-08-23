@@ -1,3 +1,5 @@
 beautifulsoup4
 requests
 tiktoken
+python-dotenv
+psycopg2

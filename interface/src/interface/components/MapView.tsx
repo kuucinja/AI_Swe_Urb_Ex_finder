@@ -7,15 +7,6 @@ import { LocationPopup } from "./LocationPopup";
 
 const MAP_STYLE = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
 
-const CATEGORY_COLORS: Record<Location["category"], string> = {
-  factory: "#22d3ee",
-  hospital: "#34d399",
-  bunker: "#f59e0b",
-  military: "#fb7185",
-  tunnel: "#a78bfa",
-  warehouse: "#38bdf8",
-};
-
 function toFeatureCollection(locations: Location[]) {
   return {
     type: "FeatureCollection" as const,
@@ -23,17 +14,15 @@ function toFeatureCollection(locations: Location[]) {
       type: "Feature" as const,
       geometry: {
         type: "Point" as const,
-        coordinates: location.coordinates,
+        coordinates: [location.lon, location.lat] as [number, number],
       },
       properties: {
         id: location.id,
-        name: location.name,
-        category: location.category,
-        description: location.description,
-        risk: location.risk,
-        comments: location.comments ?? [],
-        sourceUrl: location.sourceUrl ?? null,
-        threadUrl: location.threadUrl ?? null,
+        entity: location.entity,
+        display_name: location.display_name ?? null,
+        comment: location.comment ?? null,
+        confidence: location.confidence ?? 0,
+        thread_url: location.thread_url ?? null,
       },
     })),
   };
@@ -46,17 +35,13 @@ export function MapView() {
   const highlightIdsRef = useRef<string[]>([]);
 
   const locations = useAppStore((state) => state.locations);
-  const activeCategories = useAppStore((state) => state.activeCategories);
   const highlightedLocationIds = useAppStore((state) => state.highlightedLocationIds);
   const selectedLocationId = useAppStore((state) => state.selectedLocationId);
   const focusToken = useAppStore((state) => state.focusToken);
   const setMapState = useAppStore((state) => state.setMapState);
   const selectLocation = useAppStore((state) => state.selectLocation);
 
-  const visibleLocations = useMemo(() => {
-    if (!activeCategories.length) return locations;
-    return locations.filter((location) => activeCategories.includes(location.category));
-  }, [activeCategories, locations]);
+  const visibleLocations = locations;
 
   const highlightIds = useMemo(
     () => Array.from(new Set([...(highlightedLocationIds ?? []), selectedLocationId].filter(Boolean) as string[])),
@@ -69,6 +54,10 @@ export function MapView() {
 
   useEffect(() => {
     highlightIdsRef.current = highlightIds;
+
+    if (mapRef.current) {
+    mapRef.current.triggerRepaint();
+    }
   }, [highlightIds]);
 
   useEffect(() => {
@@ -108,29 +97,25 @@ export function MapView() {
         data: toFeatureCollection(visibleLocationsRef.current),
       });
 
+      // Color/opacity are driven by `confidence` (0-1, a real column on
+      // `locations`) instead of a category, since the DB doesn't store
+      // any place-type classification for a location.
+      const CONFIDENCE_COLOR: maplibregl.ExpressionSpecification = [
+        "interpolate",
+        ["linear"],
+        ["coalesce", ["get", "confidence"], 0],
+        0, "#fb7185",
+        0.5, "#f59e0b",
+        1, "#22d3ee",
+      ];
+
       map.addLayer({
         id: "locations-glow",
         type: "circle",
         source: "locations",
         paint: {
           "circle-radius": ["interpolate", ["linear"], ["zoom"], 3, 5, 10, 7, 14, 9],
-          "circle-color": [
-            "match",
-            ["get", "category"],
-            "factory",
-            CATEGORY_COLORS.factory,
-            "hospital",
-            CATEGORY_COLORS.hospital,
-            "bunker",
-            CATEGORY_COLORS.bunker,
-            "military",
-            CATEGORY_COLORS.military,
-            "tunnel",
-            CATEGORY_COLORS.tunnel,
-            "warehouse",
-            CATEGORY_COLORS.warehouse,
-            "#60a5fa",
-          ],
+          "circle-color": CONFIDENCE_COLOR,
           "circle-opacity": 0.15,
           "circle-blur": 0.9,
         },
@@ -142,34 +127,10 @@ export function MapView() {
         source: "locations",
         paint: {
           "circle-radius": ["interpolate", ["linear"], ["zoom"], 3, 4, 10, 6, 14, 8],
-          "circle-color": [
-            "match",
-            ["get", "category"],
-            "factory",
-            CATEGORY_COLORS.factory,
-            "hospital",
-            CATEGORY_COLORS.hospital,
-            "bunker",
-            CATEGORY_COLORS.bunker,
-            "military",
-            CATEGORY_COLORS.military,
-            "tunnel",
-            CATEGORY_COLORS.tunnel,
-            "warehouse",
-            CATEGORY_COLORS.warehouse,
-            "#60a5fa",
-          ],
+          "circle-color": CONFIDENCE_COLOR,
           "circle-stroke-width": 1.5,
           "circle-stroke-color": "#0f172a",
-          "circle-opacity": [
-            "match",
-            ["get", "risk"],
-            "high",
-            1,
-            "medium",
-            0.92,
-            0.84,
-          ],
+          "circle-opacity": ["interpolate", ["linear"], ["coalesce", ["get", "confidence"], 0], 0, 0.7, 1, 1],
         },
       });
 
@@ -179,11 +140,16 @@ export function MapView() {
         source: "locations",
         filter: ["in", ["get", "id"], ["literal", highlightIdsRef.current]],
         paint: {
-          "circle-radius": ["interpolate", ["linear"], ["zoom"], 3, 8, 10, 12, 14, 16],
-          "circle-color": "#f8fafc",
-          "circle-opacity": 0.3,
-          "circle-stroke-width": 3,
-          "circle-stroke-color": "#67e8f9",
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 3, 10, 10, 14, 14, 18],
+
+          "circle-color": "#22d3ee",   // bright cyan fill
+          "circle-opacity": 0.9,
+
+          "circle-stroke-width": 4,
+          "circle-stroke-color": "#ffffff",
+
+          // optional but powerful: makes it “pop”
+          "circle-blur": 0.2
         },
       });
 
@@ -192,7 +158,7 @@ export function MapView() {
         type: "symbol",
         source: "locations",
         layout: {
-          "text-field": ["get", "name"],
+          "text-field": ["get", "entity"],
           "text-size": 12,
           "text-offset": [0, 1.4],
           "text-anchor": "top",
@@ -233,7 +199,7 @@ export function MapView() {
         );
 
         new Popup({ closeButton: true, offset: 16 })
-          .setLngLat(location.coordinates)
+          .setLngLat([location.lon, location.lat])
           .setDOMContent(popupContainer)
           .addTo(map)
           .on("close", () => {
@@ -275,7 +241,7 @@ export function MapView() {
 
     if (targetLocations.length === 1) {
       map.easeTo({
-        center: targetLocations[0].coordinates,
+        center: [targetLocations[0].lon, targetLocations[0].lat],
         zoom: Math.max(map.getZoom(), 13),
         duration: 900,
       });
@@ -284,7 +250,7 @@ export function MapView() {
 
     const bounds = new maplibregl.LngLatBounds();
     for (const location of targetLocations) {
-      bounds.extend(location.coordinates);
+      bounds.extend([location.lon, location.lat]);
     }
     map.fitBounds(bounds, {
       padding: { top: 80, bottom: 80, left: 80, right: 80 },

@@ -1,25 +1,37 @@
 import { create } from "zustand";
-import type { ChatMessage, Location, MapState } from "../types";
-import { sendChatMessage } from "../../agentic-tools/services/agent";
+import type { ChatMessage, CrawlerStatus, GeocodeCandidate, Location, MapState } from "../types";
+import {
+  sendChatMessage,
+  correctLocation,
+  searchGeocodeCandidates,
+  confirmGeocodeCandidate,
+  getCrawlerStatus,
+  startCrawler,
+  stopCrawler,
+} from "../../agentic-tools/services/agent";
 
 type AppState = {
   locations: Location[];
   messages: ChatMessage[];
   highlightedLocationIds: string[];
   selectedLocationId: string | null;
-  activeCategories: Location["category"][];
   mapState: MapState;
   isChatLoading: boolean;
   isLocationsLoading: boolean;
   error: string | null;
   focusToken: number;
+  crawlerStatus: CrawlerStatus | null;
   setLocations: (locations: Location[]) => void;
   setMapState: (state: Partial<MapState>) => void;
-  setActiveCategories: (categories: Location["category"][]) => void;
-  toggleCategory: (category: Location["category"]) => void;
   selectLocation: (locationId: string | null) => void;
   setHighlightedLocations: (locationIds: string[]) => void;
   sendMessage: (message: string) => Promise<void>;
+  correctLocationEntity: (id: string, entity: string) => Promise<boolean>;
+  searchGeocode: (id: string, query: string) => Promise<GeocodeCandidate[]>;
+  correctLocationGeocode: (id: string, candidate: GeocodeCandidate) => Promise<boolean>;
+  refreshCrawlerStatus: () => Promise<void>;
+  startCrawling: () => Promise<void>;
+  stopCrawling: () => Promise<void>;
   clearError: () => void;
 };
 
@@ -42,7 +54,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   ],
   highlightedLocationIds: [],
   selectedLocationId: null,
-  activeCategories: [],
   mapState: {
     center: [15.0, 62.0],
     zoom: 4.8,
@@ -53,6 +64,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   isLocationsLoading: false,
   error: null,
   focusToken: 0,
+  crawlerStatus: null,
   setLocations: (locations) => set({ locations, isLocationsLoading: false }),
   setMapState: (state) =>
     set((current) => ({
@@ -61,15 +73,6 @@ export const useAppStore = create<AppState>((set, get) => ({
         ...state,
       },
     })),
-  setActiveCategories: (categories) => set({ activeCategories: categories }),
-  toggleCategory: (category) =>
-    set((current) => {
-      const activeCategories = current.activeCategories.includes(category)
-        ? current.activeCategories.filter((item) => item !== category)
-        : [...current.activeCategories, category];
-
-      return { activeCategories };
-    }),
   selectLocation: (locationId) => set({ selectedLocationId: locationId }),
   setHighlightedLocations: (locationIds) =>
     set({
@@ -78,6 +81,41 @@ export const useAppStore = create<AppState>((set, get) => ({
       selectedLocationId: locationIds[0] ?? null,
     }),
   clearError: () => set({ error: null }),
+  correctLocationEntity: async (id, entity) => {
+    const updated = await correctLocation(id, entity);
+    if (!updated) return false;
+
+    set((current) => ({
+      locations: current.locations.map((location) =>
+        location.id === id ? updated : location,
+      ),
+    }));
+    return true;
+  },
+  searchGeocode: (id, query) => searchGeocodeCandidates(id, query),
+  correctLocationGeocode: async (id, candidate) => {
+    const updated = await confirmGeocodeCandidate(id, candidate);
+    if (!updated) return false;
+
+    set((current) => ({
+      locations: current.locations.map((location) =>
+        location.id === id ? updated : location,
+      ),
+    }));
+    return true;
+  },
+  refreshCrawlerStatus: async () => {
+    const status = await getCrawlerStatus();
+    if (status) set({ crawlerStatus: status });
+  },
+  startCrawling: async () => {
+    const status = await startCrawler();
+    if (status) set({ crawlerStatus: status });
+  },
+  stopCrawling: async () => {
+    const status = await stopCrawler();
+    if (status) set({ crawlerStatus: status });
+  },
   sendMessage: async (message) => {
     const content = message.trim();
     if (!content) return;
@@ -91,7 +129,10 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     try {
       const response = await sendChatMessage(content, get().locations);
-      const assistantMessage = createMessage("assistant", response.reply);
+      if (!response) throw new Error("Agent returned an unreadable response");
+
+      console.log("agent locations:", response.locations);
+      const assistantMessage = createMessage("assistant", response.reply.answer);
       set((current) => ({
         messages: [...current.messages, assistantMessage],
         highlightedLocationIds: response.locations.map((item) => item.id),

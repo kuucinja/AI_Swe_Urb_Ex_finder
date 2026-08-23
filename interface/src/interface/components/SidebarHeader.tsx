@@ -1,28 +1,105 @@
-import { Filter, MapPinned, Sparkles } from "lucide-react";
+import { useState } from "react";
+import { ChevronDown, ChevronUp, MapPinned, Pause, Play, Radar } from "lucide-react";
 import { useAppStore } from "../../retrieval/store/useAppStore";
-import type { LocationCategory } from "../../retrieval/types";
 
-const categoryLabels: Record<LocationCategory, string> = {
-  factory: "factory",
-  hospital: "hospital",
-  bunker: "bunker",
-  military: "military",
-  tunnel: "tunnel",
-  warehouse: "warehouse",
-};
+function formatStartedAt(iso: string | null): string {
+  if (!iso) return "unknown";
+  try {
+    return new Date(iso).toLocaleTimeString();
+  } catch {
+    return iso;
+  }
+}
 
-const categorySwatches: Record<LocationCategory, string> = {
-  factory: "bg-cyan-400",
-  hospital: "bg-emerald-400",
-  bunker: "bg-amber-400",
-  military: "bg-rose-400",
-  tunnel: "bg-violet-400",
-  warehouse: "bg-sky-400",
-};
+function CrawlerStatusWidget() {
+  const status = useAppStore((state) => state.crawlerStatus);
+  const startCrawling = useAppStore((state) => state.startCrawling);
+  const stopCrawling = useAppStore((state) => state.stopCrawling);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [isToggling, setIsToggling] = useState(false);
+
+  const running = status?.running ?? false;
+  const known = status?.threads_known ?? 0;
+  const scraped = status?.threads_scraped ?? 0;
+  const pct = known > 0 ? Math.round((scraped / known) * 100) : 0;
+
+  async function handleToggle() {
+    setIsToggling(true);
+    if (running) {
+      await stopCrawling();
+    } else {
+      await startCrawling();
+    }
+    setIsToggling(false);
+  }
+
+  return (
+    <div className="mt-4 rounded-2xl border border-white/10 bg-white/5">
+      <button
+        type="button"
+        onClick={() => setIsExpanded((value) => !value)}
+        className="flex w-full items-center gap-3 px-3 py-2.5 text-left"
+      >
+        <span className="relative flex h-2.5 w-2.5 shrink-0">
+          {running ? (
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+          ) : null}
+          <span
+            className={`relative inline-flex h-2.5 w-2.5 rounded-full ${running ? "bg-emerald-400" : "bg-slate-600"}`}
+          />
+        </span>
+
+        <span className="min-w-0 flex-1">
+          <span className="block text-xs font-medium text-slate-200">
+            {running ? "Crawler running" : "Crawler idle"}
+          </span>
+          <span className="block text-[11px] text-slate-500">
+            {scraped}/{known} urbex threads scraped ({pct}%)
+          </span>
+        </span>
+
+        {isExpanded ? (
+          <ChevronUp className="h-3.5 w-3.5 shrink-0 text-slate-500" />
+        ) : (
+          <ChevronDown className="h-3.5 w-3.5 shrink-0 text-slate-500" />
+        )}
+      </button>
+
+      {isExpanded ? (
+        <div className="space-y-2 border-t border-white/10 px-3 py-2.5">
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+            <div
+              className="h-full rounded-full bg-emerald-400/80 transition-all"
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+          <p className="flex items-center gap-1.5 text-[11px] text-slate-400">
+            <Radar className="h-3 w-3 shrink-0" />
+            {status?.current_activity ?? "not running"}
+          </p>
+          {status?.started_at ? (
+            <p className="text-[11px] text-slate-500">Started at {formatStartedAt(status.started_at)}</p>
+          ) : null}
+          <button
+            type="button"
+            onClick={handleToggle}
+            disabled={isToggling}
+            className={`mt-1 flex w-full items-center justify-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs transition disabled:opacity-50 ${
+              running
+                ? "border-rose-400/30 bg-rose-400/10 text-rose-200 hover:bg-rose-400/20"
+                : "border-emerald-400/30 bg-emerald-400/10 text-emerald-200 hover:bg-emerald-400/20"
+            }`}
+          >
+            {running ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
+            {isToggling ? "…" : running ? "Stop crawler" : "Start crawler"}
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 export function SidebarHeader() {
-  const activeCategories = useAppStore((state) => state.activeCategories);
-  const toggleCategory = useAppStore((state) => state.toggleCategory);
   const locations = useAppStore((state) => state.locations);
   const highlightedLocationIds = useAppStore((state) => state.highlightedLocationIds);
 
@@ -55,39 +132,7 @@ export function SidebarHeader() {
         </div>
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] uppercase tracking-[0.2em] text-slate-400">
-          <Filter className="h-3.5 w-3.5" />
-          categories
-        </span>
-        {Object.keys(categoryLabels).map((category) => {
-          const value = category as LocationCategory;
-          const active = activeCategories.includes(value);
-
-          return (
-            <button
-              key={value}
-              type="button"
-              onClick={() => toggleCategory(value)}
-              className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition ${
-                active
-                  ? "border-cyan-400/30 bg-cyan-400/15 text-cyan-50"
-                  : "border-white/10 bg-white/5 text-slate-300 hover:border-white/20 hover:bg-white/10"
-              }`}
-            >
-              <span className={`h-2.5 w-2.5 rounded-full ${categorySwatches[value]}`} />
-              {categoryLabels[value]}
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-300">
-        <Sparkles className="h-3.5 w-3.5 text-cyan-200" />
-        {activeCategories.length
-          ? `${activeCategories.length} category filter${activeCategories.length === 1 ? "" : "s"} active`
-          : "All categories visible"}
-      </div>
+      <CrawlerStatusWidget />
     </div>
   );
 }

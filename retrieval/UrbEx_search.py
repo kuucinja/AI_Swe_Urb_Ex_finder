@@ -1,16 +1,17 @@
+import sys
 import requests
-from crawl_agent import run_agent_crawl
+from retrieval.crawl_agent import run_agent_crawl
 import time
-import requests
 from bs4 import BeautifulSoup
 import re
-import json
-import os
-from pathlib import Path
+import database.repository as repo
 
-
-PROJECT_DIR = Path(__file__).resolve().parent
-DATA_DIR = PROJECT_DIR / "data"
+# Windows consoles/redirected-output default to a codepage (e.g. cp1251)
+# that can't encode Swedish characters (ö/ä/å) in scraped text - without
+# this, print() crashes mid-run the moment it hits one.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", line_buffering=True)
+    sys.stderr.reconfigure(encoding="utf-8", line_buffering=True)
 
 
 def fetch(url):
@@ -57,7 +58,7 @@ def get_max_page(html, url):
     )
 
     if not page_info:
-        input(f"Page info not found in HTML: {url} \n press to continue...")
+        print(f"Page info not found in HTML: {url}")
         return 1
 
     text = page_info.get_text(strip=True)
@@ -107,133 +108,83 @@ Title: {title}
 """
     return run_agent_crawl(prompt).strip().upper() == "YES"
 
-def save_json(filename, data):
-    path = DATA_DIR / filename
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-
-
-
-def load_json(filename, default):
-    path = DATA_DIR / filename
-
-    if os.path.exists(path):
-        with open(path, "r", encoding="utf-8") as f:
-            return json.load(f)
-    return default
-    
-
-def save_results(results, filename="urbex_results.json"):
-    with open(filename, "w", encoding="utf-8") as f:
-        json.dump(results, f, ensure_ascii=False, indent=2)
-
-def agent(start_url):
-    # results = []
+def agent(start_url, should_stop=None):
+    """should_stop: optional zero-arg callable checked between threads
+    (the finest-grained unit of work here, since each one costs an LLM
+    call) as well as between pages and themes, so a caller like the
+    perpetual crawler can interrupt a long discovery pass promptly
+    instead of only between whole themes."""
+    results = []
 
     # LEVEL 1: get themes
     html = fetch(start_url)
-    # input(html)
     themes = extract_forum_themes(html)
-    # input(f'{themes} \n themes found, press to continue...')
     priority_theme = "https://www.flashback.org/f492lp"
 
     if priority_theme in themes:
-        input(f"Prioritizing theme: {priority_theme}")
+        print(f"Prioritizing theme: {priority_theme}")
         themes.remove(priority_theme)
         themes.insert(0, priority_theme)
     else:
         print(f"Priority theme not found: {priority_theme}")
-        # print(f"Available themes: {themes} \n press to continue...")
-        for theme in themes:
-            if "urban" in theme.lower() or "urban exploration" in theme.lower():
-                input(f"Found potential urbex theme: {theme} \n press to continue...")
-            if "f492" in theme.lower():
-                input(f"Found potential urbex theme (f492): {theme} \n press to continue...")
-            else:
-                input(f"keyword urban not found, do manual search {themes} \n press to continue...")
 
     for theme in themes:
-        if theme  not in completed_themes:
-            if theme not in seen_themes:
-                seen_themes.append(theme)
-                save_json("seen_themes.json", seen_themes)
-        else:
+        if should_stop is not None and should_stop():
+            return results
+
+        if repo.has_completed_theme(theme):
             print(f"Theme already completed, skipping: {theme}")
             continue
+
+        if not repo.has_seen_theme(theme):
+            repo.mark_theme_seen(theme)
+
         # LEVEL 2: paginate theme
         max_pages = get_max_page(fetch(theme), theme)
         pages = build_pages(theme, max_pages)
         print(f"Theme: {theme} | Max pages: {max_pages}")
-        # input(f'{pages} \n pages found, press to continue...')
         for page in pages:
-            if page not in completed_pages:
-                if page not in seen_pages:
-                    seen_pages.append(page)
-                    save_json("seen_pages.json", list(seen_pages))
-            else:
+            if should_stop is not None and should_stop():
+                return results
+
+            if repo.has_completed_page(page):
                 print(f"Page already completed, skipping: {page}")
                 continue
+            if not repo.has_seen_page(page):
+                repo.mark_page_seen(page)
+
             page_html = fetch(page)
             # LEVEL 3: threads
             threads = extract_threads(page_html)
-            # input(f'{threads} \n threads found, press to continue...')
             for title, url in threads:
-                if url not in completed_threads:
-                    if url not in seen_threads:
-                        seen_threads.append(url)
-                        save_json("seen_threads.json", list(seen_threads))
-                else:
+                if should_stop is not None and should_stop():
+                    return results
+
+                if repo.has_completed_thread(url):
                     print(f"Thread already completed, skipping: {title} - {url}")
                     continue
-                all_links.append({
-                "title": title,
-                "url": url,
-                "theme": theme,
-                "page": page
-            })
+                if not repo.has_seen_thread(url):
+                    repo.mark_thread_seen(url)
 
-                save_json("all_links.json", all_links)
+                repo.upsert_thread(repo.parse_thread_id(url), repo.parse_theme_id(theme), title, url)
+
                 # AI decision
                 decision = is_urbex(title)
-                if decision:
-                    print(f'URBEX THREAD FOUND: {title} - {url} \n press to continue...')
-                    results.append({
-                        "title": title,
-                        "url": url,
-                        "theme": theme,
-                        "urbex": True
-                    })
-                else:
-                    results.append({
-                    "title": title,
-                    "url": url,
-                    "theme": theme,
-                    "urbex": False
-                })
-                save_json("results.json", results)
+                result = {"title": title, "url": url, "theme": theme, "urbex": decision}
+                results.append(result)
+
+                repo.set_thread_urbex(repo.parse_thread_id(url), decision)
+                repo.set_thread_result(repo.parse_thread_id(url), result)
+
                 print(f"Checked thread: {title} - {url} | Urbex: {'YES' if decision else 'NO'}")
 
-                completed_threads.append(url)
-                save_json("completed_threads.json", completed_threads)
-            completed_pages.append(page)
-            save_json("completed_pages.json", completed_pages)
-        completed_themes.append(theme)
-        save_json("completed_themes.json", completed_themes)
-
+                repo.mark_thread_completed(url)
+            repo.mark_page_completed(page)
+        repo.mark_theme_completed(theme)
 
     return results
 
 if __name__ == "__main__":
-    os.makedirs(DATA_DIR, exist_ok=True)
-
-    completed_themes = load_json("completed_themes.json", [])
-    completed_pages = load_json("completed_pages.json", [])
-    completed_threads = load_json("completed_threads.json", [])
-    seen_themes = load_json("seen_themes.json", [])
-    seen_pages = load_json("seen_pages.json", [])
-    seen_threads = load_json("seen_threads.json", [])
-    results = load_json("results.json", [])
-    all_links = load_json("all_links.json", [])
     BASE_URL = "https://www.flashback.org"
     results = agent(BASE_URL)
 

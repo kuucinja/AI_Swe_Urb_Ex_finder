@@ -1,3 +1,4 @@
+import re
 import requests
 import sys
 import tiktoken
@@ -27,6 +28,7 @@ def count_tokens(messages):
 
 def trim_to_limit(messages):
     while count_tokens(messages) > MAX_TOKENS and len(messages) > 2:
+        print(f'message length too big, trimmin: {len(messages)}')
         # remove oldest NON-system message safely
         for i in range(len(messages)):
             if messages[i]["role"] != "system":
@@ -80,13 +82,13 @@ def summarize(messages):
 
     return data["choices"][0]["message"]["content"]
 
-def call_llm(messages):
+def call_llm(messages, max_tokens=300):
     messages = trim_to_limit(messages)
     print("TOKENS, during call_llm:", count_tokens(messages))
     print("messages during call_llm:")
     for m in messages:
         print(m["role"], len(m["content"]))
-    
+
     for i in range(retries):
         response = response = requests.post(
         API_URL,
@@ -98,7 +100,7 @@ def call_llm(messages):
             'model': MODEL_TYPE,
             'messages': messages,
             'temperature': 0.7,
-            'max_tokens': 300
+            'max_tokens': max_tokens
         }
     )
 
@@ -135,4 +137,21 @@ def call_llm(messages):
     # print(response.json())
 
     # return response.json()["choices"][0]["message"]["content"]
+
+
+def call_llm_json(messages, max_tokens=1500) -> dict:
+    """Call the LLM and parse the first {...} JSON object out of its
+    response. Raises ValueError if no JSON object is found, or
+    json.JSONDecodeError if it's malformed - callers making a control-flow
+    decision from the result should catch and fall back rather than let
+    a bad LLM response crash the request.
+
+    max_tokens defaults higher than call_llm()'s own default: MODEL_TYPE
+    is a reasoning model that spends tokens thinking out loud before its
+    final answer, and a JSON-producing call needs to survive that."""
+    response = call_llm(messages, max_tokens=max_tokens)
+    match = re.search(r"\{.*\}", response, re.DOTALL)
+    if not match:
+        raise ValueError(f"No JSON object found in LLM output: {response!r}")
+    return json.loads(match.group())
 

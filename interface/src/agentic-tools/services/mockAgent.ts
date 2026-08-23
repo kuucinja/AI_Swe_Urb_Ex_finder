@@ -1,30 +1,13 @@
 import type { AgentResponse, Location } from "../../retrieval/types";
 
-const categoryHints: Record<string, string[]> = {
-  factory: ["factory", "mill", "plant", "industrial", "warehouse", "workshop"],
-  hospital: ["hospital", "clinic", "ward", "medical"],
-  bunker: ["bunker", "shelter", "subterranean", "underground"],
-  military: ["military", "base", "depot", "fort", "airfield", "army", "navy"],
-  tunnel: ["tunnel", "subway", "cave", "passage"],
-  warehouse: ["warehouse", "storage", "logistics", "depot", "yard"],
-};
-
-
-
-
 function scoreLocation(message: string, location: Location): number {
   const text = message.toLowerCase();
-  const name = location.name.toLowerCase();
+  const entity = location.entity.toLowerCase();
   let score = 0;
 
-  if (text.includes(name)) score += 12;
-  if (text.includes(location.category)) score += 8;
-
-  for (const hint of categoryHints[location.category] ?? []) {
-    if (text.includes(hint)) score += 3;
-  }
-
-  if (text.includes(location.risk)) score += 2;
+  if (text.includes(entity)) score += 12;
+  if (location.comment && text.includes(location.comment.toLowerCase())) score += 3;
+  if (location.display_name && text.includes(location.display_name.toLowerCase())) score += 3;
 
   return score;
 }
@@ -44,23 +27,35 @@ export function buildMockAgentResponse(
 
   if (!matched.length) {
     return {
-      reply:
-        "I do not have a confident pin yet. Give me a place name, a category, or a rough area and I will narrow the map down.",
+      reply: {
+        answer:
+          "I do not have a confident pin yet. Give me a place name or a rough area and I will narrow the map down.",
+        used_locations: [],
+        confidence: 0,
+      },
       locations: [],
     };
   }
 
   if (matched.length === 1) {
     return {
-      reply: `I found one strong match: ${matched[0].location.name}. I have highlighted it on the map.`,
-      locations: [{ id: matched[0].location.id }],
+      reply: {
+        answer: `I found one strong match: ${matched[0].location.entity}. I have highlighted it on the map.`,
+        used_locations: [matched[0].location.entity],
+        confidence: 1,
+      },
+      locations: [matched[0].location],
     };
   }
 
   return {
-    reply: `I found ${matched.length} likely locations: ${matched
-      .map((item) => item.location.name)
-      .join(", ")}. I have highlighted them on the map.`,
-    locations: matched.map((item) => ({ id: item.location.id })),
+    reply: {
+      answer: `I found ${matched.length} likely locations: ${matched
+        .map((item) => item.location.entity)
+        .join(", ")}. I have highlighted them on the map.`,
+      used_locations: matched.map((item) => item.location.entity),
+      confidence: 1,
+    },
+    locations: matched.map((item) => item.location),
   };
 }

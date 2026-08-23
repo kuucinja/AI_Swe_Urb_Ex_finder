@@ -25,7 +25,9 @@ export function ChatMessage({ message }: ChatMessageProps) {
             : "border-cyan-400/20 bg-cyan-500/15 text-cyan-50"
         }`}
       >
-        <p className="whitespace-pre-wrap">{message.content}</p>
+        <p className="whitespace-pre-wrap">  {typeof message.content === "string"
+    ? message.content
+    : message.content.answer}</p>
       </div>
 
       {!isAssistant ? (

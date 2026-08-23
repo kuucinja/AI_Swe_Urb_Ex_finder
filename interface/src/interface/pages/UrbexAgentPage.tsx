@@ -1,42 +1,25 @@
 import { useEffect } from "react";
-// import locationsUrl from "../../retrieval/data/locations.geojson?url";
-import locationsUrl from "../../../../retrieval/data_locations/discovered_locations.geojson?url";
 import { AppLayout } from "../components/AppLayout";
 import { useAppStore } from "../../retrieval/store/useAppStore";
 import type { Location } from "../../retrieval/types";
 
-type GeoJSONLocationFeature = {
-  type: "Feature";
-  properties: Omit<Location, "coordinates">;
-  geometry: {
-    type: "Point";
-    coordinates: [number, number];
-  };
-};
-
-type GeoJSONLocationCollection = {
-  type: "FeatureCollection";
-  features: GeoJSONLocationFeature[];
-};
+const LOCATIONS_URL = "http://localhost:8000/locations";
+const CRAWLER_STATUS_POLL_MS = 5000;
 
 export function UrbexAgentPage() {
   const setLocations = useAppStore((state) => state.setLocations);
   const setMapState = useAppStore((state) => state.setMapState);
+  const refreshCrawlerStatus = useAppStore((state) => state.refreshCrawlerStatus);
 
   useEffect(() => {
     let active = true;
 
     async function loadLocations() {
-      const response = await fetch(locationsUrl);
-      const data: GeoJSONLocationCollection = await response.json();
+      const response = await fetch(LOCATIONS_URL);
+      const data: Location[] = await response.json();
       if (!active) return;
 
-      const locations = data.features.map((feature) => ({
-        ...feature.properties,
-        coordinates: feature.geometry.coordinates,
-      }));
-
-      setLocations(locations);
+      setLocations(data);
       setMapState({
         center: [15, 62],
         zoom: 4.8,
@@ -55,10 +38,11 @@ export function UrbexAgentPage() {
     };
   }, [setLocations, setMapState]);
 
+  useEffect(() => {
+    refreshCrawlerStatus();
+    const interval = window.setInterval(refreshCrawlerStatus, CRAWLER_STATUS_POLL_MS);
+    return () => window.clearInterval(interval);
+  }, [refreshCrawlerStatus]);
+
   return <AppLayout />;
 }
-
-// const response = await fetch(locationsUrl);
-// const data = await response.json();
-
-// console.log("Loaded GeoJSON:", data);

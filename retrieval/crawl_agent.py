@@ -42,7 +42,7 @@ def run_agent_crawl(user_input):
 
 
 if __name__ == "__main__":
-    result = run_agent("this is not the main file, please explain it and tell what a good agent design looks like")
+    result = run_agent_crawl("this is not the main file, please explain it and tell what a good agent design looks like")
     print("\nFINAL OUTPUT:\n", result)
 
 
